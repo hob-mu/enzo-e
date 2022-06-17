@@ -307,28 +307,20 @@ double EnzoMethodGravity::timestep_ (Block * block) throw()
   field.dimensions (0,&mx,&my,&mz);
   field.ghost_depth(0,&gx,&gy,&gz);
 
-#ifdef NEW_TIMESTEP  
+
   enzo_float * a3[3] =
     { (enzo_float*) field.values ("acceleration_x"),
       (enzo_float*) field.values ("acceleration_y"),
       (enzo_float*) field.values ("acceleration_z") };
-#else
-  enzo_float * ax = (enzo_float*) field.values ("acceleration_x");
-  enzo_float * ay = (enzo_float*) field.values ("acceleration_y");
-  enzo_float * az = (enzo_float*) field.values ("acceleration_z");
-#endif  
+ 
 
   const int rank = cello::rank();
   
   enzo_float dt = std::numeric_limits<enzo_float>::max();
-
-#ifdef NEW_TIMESTEP  
+ 
   double h3[3];
   block->cell_width(h3,h3+1,h3+2);
-#else  
-  double hx,hy,hz;
-  block->cell_width(&hx,&hy,&hz);
-#endif  
+  
   
   EnzoPhysicsCosmology * cosmology = enzo::cosmology();
 
@@ -338,28 +330,18 @@ double EnzoMethodGravity::timestep_ (Block * block) throw()
     double dt = block->dt();
     double time = block->time();
     cosmology-> compute_expansion_factor (&cosmo_a,&cosmo_dadt,time+0.5*dt);
-#ifdef NEW_TIMESTEP  
+ 
     if (rank >= 1) h3[0]*=cosmo_a;
     if (rank >= 2) h3[1]*=cosmo_a;
     if (rank >= 3) h3[2]*=cosmo_a;
-#else
-    if (rank >= 1) hx*=cosmo_a;
-    if (rank >= 2) hy*=cosmo_a;
-    if (rank >= 3) hz*=cosmo_a;
-#endif 
+
   }
   
   double mean_cell_width;
 
-#ifdef NEW_TIMESTEP
   if (rank == 1) mean_cell_width = h3[0];
   if (rank == 2) mean_cell_width = sqrt(h3[0]*h3[1]);
   if (rank == 3) mean_cell_width = cbrt(h3[0]*h3[1]*h3[2]);
-#else
-  if (rank == 1) mean_cell_width = hx;
-  if (rank == 2) mean_cell_width = sqrt(hx*hy);
-  if (rank == 3) mean_cell_width = cbrt(hx*hy*hz);
-#endif
   
   // Timestep is sqrt(mean_cell_width / (a_mag_max + epsilon)),
   // where a_mag_max is the maximum acceleration magnitude
@@ -379,17 +361,12 @@ double EnzoMethodGravity::timestep_ (Block * block) throw()
     for (int iy=gy; iy<my-gy; iy++) {
       for (int ix=gx; ix<mx-gx; ix++) {
 	int i=ix + mx*(iy + iz*my);
-#ifdef NEW_TIMESTEP
+
 	if (rank == 1) a_mag_2 = a3[0][i] * a3[0][i];
 	if (rank == 2) a_mag_2 = a3[0][i] * a3[0][i] + a3[1][i] * a3[1][i];
 	if (rank == 3) a_mag_2 = a3[0][i] * a3[0][i] + a3[1][i] * a3[1][i]
 			       + a3[2][i] * a3[2][i];
-#else
-	if (rank == 1) a_mag_2 = ax[i] * ax[i];
-	if (rank == 2) a_mag_2 = ax[i] * ax[i] + ay[i] * ay[i];
-	if (rank == 3) a_mag_2 = ax[i] * ax[i] + ay[i] * ay[i]
-			       + az[i] * az[i];
-#endif
+	      
 	a_mag_2_max = std::max(a_mag_2_max,a_mag_2);
       }
     }
